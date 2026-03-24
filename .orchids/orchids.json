@@ -1,0 +1,8 @@
+{
+  "startupCommands": [
+    "cd /home/user/app/backend && npm install --ignore-scripts && node server.js",
+    "cd /home/user/app/frontend && npm install && npm run dev"
+  ],
+  "projectId": "0b75bca3-a527-4748-80a8-047dc0d00dba",
+  "templateId": "any"
+}
