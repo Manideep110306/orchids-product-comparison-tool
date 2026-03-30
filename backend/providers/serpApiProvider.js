@@ -2,8 +2,10 @@ const axios = require('axios');
 const { extractSpecs, extractBrand, extractModelNumbers } = require('../utils/productGrouper');
 
 const SERPAPI_ENDPOINT = 'https://serpapi.com/search.json';
-const DEFAULT_MAX_PRODUCTS = parseInt(process.env.MAX_SERPAPI_PRODUCTS, 10) || 8;
-const DEFAULT_MAX_STORES = parseInt(process.env.MAX_SERPAPI_STORES_PER_PRODUCT, 10) || 10;
+const DEFAULT_MAX_PRODUCTS = parseInt(process.env.MAX_SERPAPI_PRODUCTS, 10) || 5;
+const DEFAULT_MAX_STORES = parseInt(process.env.MAX_SERPAPI_STORES_PER_PRODUCT, 10) || 6;
+const DEFAULT_ENRICHED_PRODUCTS = parseInt(process.env.MAX_SERPAPI_ENRICHED_PRODUCTS, 10) || 0;
+const DEFAULT_OFFERS_TIMEOUT = parseInt(process.env.SERPAPI_OFFERS_TIMEOUT, 10) || 12000;
 const QUERY_ALIAS_PATTERNS = [
   { pattern: /\biphone\b/i, expand: (query) => `apple ${query}` },
   { pattern: /\bairpods?\b/i, expand: (query) => `apple ${query}` },
@@ -116,7 +118,7 @@ async function fetchStoresForProduct(product, config) {
       gl: config.gl,
       hl: config.hl,
       api_key: config.apiKey,
-    }, config.timeout);
+    }, DEFAULT_OFFERS_TIMEOUT);
 
     const stores = data.product_results?.stores || [];
     return stores.slice(0, DEFAULT_MAX_STORES).map((store, index) => ({
@@ -166,7 +168,11 @@ async function searchWithSerpApi(query) {
   console.log(`[SERPAPI] Found ${shoppingResults.length} shopping products using "${matchedQuery}"`);
 
   const storeResults = await Promise.all(
-    shoppingResults.map((product) => fetchStoresForProduct(product, config))
+    shoppingResults.map((product, index) => (
+      index < DEFAULT_ENRICHED_PRODUCTS
+        ? fetchStoresForProduct(product, config)
+        : Promise.resolve([])
+    ))
   );
 
   const results = shoppingResults.map((product, index) => {
