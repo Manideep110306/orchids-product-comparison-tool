@@ -32,7 +32,7 @@ export default function SearchBar({ query, onChange, onSubmit, loading }) {
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
       setShowSuggestions(false);
-      onSubmit();
+      onSubmit(query);
     }
     if (e.key === 'Escape') {
       setShowSuggestions(false);
@@ -43,7 +43,7 @@ export default function SearchBar({ query, onChange, onSubmit, loading }) {
   const handleSuggestionClick = (suggestion) => {
     onChange(suggestion);
     setShowSuggestions(false);
-    setTimeout(() => onSubmit(), 100);
+    setTimeout(() => onSubmit(suggestion), 100);
   };
 
   const filteredSuggestions = query.length > 0
@@ -80,7 +80,7 @@ export default function SearchBar({ query, onChange, onSubmit, loading }) {
             setShowSuggestions(true);
           }}
           onKeyDown={handleKeyDown}
-          placeholder="Search for products across Amazon, Flipkart..."
+          placeholder="Search for products across online stores..."
           className="flex-1 py-4 px-2 text-base bg-transparent outline-none placeholder-slate-400 text-slate-800"
           disabled={loading}
         />
@@ -103,7 +103,7 @@ export default function SearchBar({ query, onChange, onSubmit, loading }) {
         <button
           onClick={() => {
             setShowSuggestions(false);
-            onSubmit();
+            onSubmit(query);
           }}
           disabled={loading || !query.trim()}
           className="mr-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-colors"

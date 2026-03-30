@@ -109,9 +109,9 @@ async function scrapeAmazon(query) {
 
         // URL
         const relativeUrl = $el.find('h2 a').attr('href');
-        const productUrl = relativeUrl
-          ? `https://www.amazon.in${relativeUrl.split('?')[0]}`
-          : buildProductUrl(asin);
+        const productUrl = buildProductUrl(asin) || (
+          relativeUrl ? `https://www.amazon.in${relativeUrl.split('?')[0]}` : null
+        );
 
         if (!title || !image) return;
 

@@ -27,7 +27,10 @@ function SpecTag({ label }) {
 
 function PlatformRow({ platform, isLowest, isHighestRated, index }) {
   const config = getPlatformConfig(platform.name);
-  const isValidUrl = platform.urlValid !== false && platform.url?.startsWith('http');
+  const isValidUrl =
+    platform.urlValid !== false &&
+    platform.isProductUrl !== false &&
+    platform.url?.startsWith('http');
 
   const handleBuy = () => {
     if (!isValidUrl) return;
@@ -94,7 +97,7 @@ function PlatformRow({ platform, isLowest, isHighestRated, index }) {
               ? `${config.btnBg} text-white shadow-sm hover:shadow-md active:scale-95`
               : 'bg-slate-200 text-slate-400 cursor-not-allowed'
           }`}
-          title={!isValidUrl ? 'Link not available' : undefined}
+          title={!isValidUrl ? 'Direct product link not available' : undefined}
         >
           {isValidUrl && platform.availability !== 'Out of Stock' ? (
             <>Buy Now <ExternalLink className="w-3 h-3" /></>

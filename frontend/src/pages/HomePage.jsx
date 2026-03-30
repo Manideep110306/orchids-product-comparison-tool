@@ -18,20 +18,17 @@ const TRENDING = [
 function HeroSection({ query, onChange, onSubmit, loading }) {
   return (
     <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 pt-16 pb-20 px-4">
-      {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
         <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl" />
       </div>
 
       <div className="relative max-w-4xl mx-auto text-center">
-        {/* Badge */}
         <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-white/80 text-sm mb-6">
           <Zap className="w-4 h-4 text-amber-400" />
           Compare prices across all major platforms instantly
         </div>
 
-        {/* Headline */}
         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white mb-4 leading-tight tracking-tight">
           Find the{' '}
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-400">
@@ -40,10 +37,9 @@ function HeroSection({ query, onChange, onSubmit, loading }) {
           <br />across every platform
         </h1>
         <p className="text-slate-300 text-lg mb-10 max-w-2xl mx-auto">
-          Search once, compare prices from Amazon, Flipkart and more — all in one place.
+          Search once, compare prices from multiple stores in one place.
         </p>
 
-        {/* Search bar */}
         <SearchBar
           query={query}
           onChange={onChange}
@@ -51,7 +47,6 @@ function HeroSection({ query, onChange, onSubmit, loading }) {
           loading={loading}
         />
 
-        {/* Trending */}
         <div className="mt-6 flex items-center justify-center flex-wrap gap-2">
           <span className="text-xs text-white/50 flex items-center gap-1">
             <TrendingUp className="w-3.5 h-3.5" /> Trending:
@@ -59,7 +54,10 @@ function HeroSection({ query, onChange, onSubmit, loading }) {
           {TRENDING.map((t) => (
             <button
               key={t}
-              onClick={() => { onChange(t); setTimeout(onSubmit, 100); }}
+              onClick={() => {
+                onChange(t);
+                setTimeout(() => onSubmit(t), 100);
+              }}
               className="px-3 py-1 bg-white/10 hover:bg-white/20 border border-white/20 text-white/80 text-xs rounded-full transition-colors"
             >
               {t}
@@ -73,22 +71,21 @@ function HeroSection({ query, onChange, onSubmit, loading }) {
 
 function PlatformStats({ meta }) {
   if (!meta || !meta.platformCounts) return null;
-  const { amazon = 0, flipkart = 0 } = meta.platformCounts;
+
+  const entries = Object.entries(meta.platformCounts)
+    .sort(([, countA], [, countB]) => countB - countA)
+    .slice(0, 6);
+
+  if (entries.length === 0) return null;
 
   return (
     <div className="flex flex-wrap gap-3 justify-center mb-6">
-      {amazon > 0 && (
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-orange-50 border border-orange-200 rounded-full">
-          <span className="w-2 h-2 bg-orange-500 rounded-full" />
-          <span className="text-xs font-semibold text-orange-700">Amazon: {amazon} products</span>
+      {entries.map(([name, count]) => (
+        <div key={name} className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-full">
+          <span className="w-2 h-2 bg-slate-500 rounded-full" />
+          <span className="text-xs font-semibold text-slate-700">{name}: {count} offers</span>
         </div>
-      )}
-      {flipkart > 0 && (
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-full">
-          <span className="w-2 h-2 bg-blue-600 rounded-full" />
-          <span className="text-xs font-semibold text-blue-700">Flipkart: {flipkart} products</span>
-        </div>
-      )}
+      ))}
     </div>
   );
 }
@@ -96,14 +93,13 @@ function PlatformStats({ meta }) {
 export default function HomePage() {
   const {
     query, results, loading, error, meta, searched,
-    handleQueryChange, handleSubmit, debouncedSearch,
+    handleQueryChange, handleSubmit,
   } = useSearch();
 
   const { wishlist, addItem, removeItem, isInWishlist } = useWishlist();
   const [filteredResults, setFilteredResults] = useState([]);
   const [showWishlist, setShowWishlist] = useState(false);
 
-  // Sync filtered results when raw results change
   useEffect(() => {
     setFilteredResults(results);
   }, [results]);
@@ -124,12 +120,10 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header — fixed on desktop, hidden over hero */}
       <div className="hidden md:block">
         <Header wishlistCount={wishlist.length} onWishlistClick={() => setShowWishlist(true)} />
       </div>
 
-      {/* Hero with integrated search */}
       <HeroSection
         query={query}
         onChange={handleQueryChange}
@@ -137,7 +131,6 @@ export default function HomePage() {
         loading={loading}
       />
 
-      {/* Mobile wishlist button */}
       <div className="md:hidden fixed bottom-6 right-6 z-40">
         <button
           onClick={() => setShowWishlist(true)}
@@ -154,19 +147,15 @@ export default function HomePage() {
         </button>
       </div>
 
-      {/* Results section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {/* Error */}
         {error && (
           <div className="mb-6">
             <ErrorBanner message={error} />
           </div>
         )}
 
-        {/* Loading skeleton */}
         {loading && <SkeletonGrid count={6} />}
 
-        {/* Results */}
         {!loading && searched && !error && (
           <>
             {results.length > 0 ? (
@@ -194,7 +183,7 @@ export default function HomePage() {
                 </div>
                 {filteredResults.length === 0 && (
                   <div className="text-center py-10 text-slate-500">
-                    No products match the current filters.{' '}
+                    No products match the current filters.{` `}
                     <button className="text-blue-600 hover:underline" onClick={() => setFilteredResults(results)}>
                       Clear filters
                     </button>
@@ -207,13 +196,11 @@ export default function HomePage() {
           </>
         )}
 
-        {/* Initial state — feature cards */}
         {!searched && !loading && (
           <FeatureCards />
         )}
       </div>
 
-      {/* Wishlist panel */}
       {showWishlist && (
         <WishlistPanel
           wishlist={wishlist}
@@ -230,7 +217,7 @@ function FeatureCards() {
     {
       icon: '⚡',
       title: 'Real-Time Prices',
-      desc: 'Live data fetched directly from Amazon & Flipkart at search time.',
+      desc: 'Live shopping data pulled at search time from multiple online stores.',
     },
     {
       icon: '🧩',
@@ -245,7 +232,7 @@ function FeatureCards() {
     {
       icon: '🔗',
       title: 'Direct Redirect',
-      desc: 'One click takes you straight to the exact product page — no searching again.',
+      desc: 'One click takes you straight to the exact product page with supported stores.',
     },
     {
       icon: '❤️',
@@ -264,11 +251,11 @@ function FeatureCards() {
       <h2 className="text-2xl font-bold text-slate-800 text-center mb-2">How it works</h2>
       <p className="text-slate-500 text-center mb-8">Search once, compare everywhere</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {features.map((f) => (
-          <div key={f.title} className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow">
-            <div className="text-3xl mb-3">{f.icon}</div>
-            <h3 className="font-bold text-slate-800 mb-1">{f.title}</h3>
-            <p className="text-sm text-slate-500 leading-relaxed">{f.desc}</p>
+        {features.map((feature) => (
+          <div key={feature.title} className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow">
+            <div className="text-3xl mb-3">{feature.icon}</div>
+            <h3 className="font-bold text-slate-800 mb-1">{feature.title}</h3>
+            <p className="text-sm text-slate-500 leading-relaxed">{feature.desc}</p>
           </div>
         ))}
       </div>

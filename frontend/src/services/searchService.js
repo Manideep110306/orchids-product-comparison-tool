@@ -7,8 +7,9 @@ const apiClient = axios.create({
   timeout: 60000,
 });
 
-export const searchProducts = async (query) => {
-  const { data } = await apiClient.get(`/search?q=${encodeURIComponent(query)}`);
+export const searchProducts = async (query, options = {}) => {
+  const { signal } = options;
+  const { data } = await apiClient.get(`/search?q=${encodeURIComponent(query)}`, { signal });
   return data;
 };
 

@@ -117,10 +117,9 @@ async function scrapeFlipkart(query) {
 
         // URL
         const relPath =
-          $el.find('a._1fQZEK').attr('href') ||
-          $el.find('a.s1Q9rs').attr('href') ||
           $el.find('a[href*="/p/"]').first().attr('href') ||
-          $el.find('a').first().attr('href');
+          $el.find('a._1fQZEK[href*="/p/"]').attr('href') ||
+          $el.find('a.s1Q9rs[href*="/p/"]').attr('href');
 
         const productUrl = relPath
           ? relPath.startsWith('http')
@@ -130,6 +129,7 @@ async function scrapeFlipkart(query) {
 
         if (!productUrl) return;
         const pid = extractFlipkartPID(productUrl);
+        if (!pid) return;
 
         // Availability
         const outOfStock = $el.find('._16FRp0, .btn-out-of-stock').length > 0;

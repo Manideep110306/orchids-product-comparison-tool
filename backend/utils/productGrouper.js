@@ -267,4 +267,4 @@ function groupProducts(allProducts) {
   return groups;
 }
 
-module.exports = { groupProducts, computeSimilarity, extractSpecs };
+module.exports = { groupProducts, computeSimilarity, extractSpecs, extractBrand, extractModelNumbers };

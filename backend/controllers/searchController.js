@@ -1,9 +1,9 @@
-const { scrapeAmazon } = require('../scrapers/amazonScraper');
-const { scrapeFlipkart } = require('../scrapers/flipkartScraper');
-const { groupProducts } = require('../utils/productGrouper');
 const { validateProductUrls } = require('../utils/urlValidator');
 const { getCache, setCache } = require('../cache/queryCache');
 const { generateMockProducts } = require('../utils/mockData');
+const { groupProducts } = require('../utils/productGrouper');
+const { filterProductsByQuery, isRelevantToQuery } = require('../utils/searchRelevance');
+const { searchWithSerpApi } = require('../providers/serpApiProvider');
 
 const USE_MOCK_FALLBACK = process.env.USE_MOCK === 'true' || false;
 
@@ -17,54 +17,60 @@ async function searchProducts(req, res) {
   const normalizedQuery = query.trim().toLowerCase();
   const cacheKey = `search:${normalizedQuery}`;
 
-  console.log(`\n${'─'.repeat(60)}`);
+  console.log(`\n${'-'.repeat(60)}`);
   console.log(`[SEARCH] Query: "${normalizedQuery}"`);
-  console.log(`${'─'.repeat(60)}`);
+  console.log(`${'-'.repeat(60)}`);
 
-  // Check cache
   const cached = getCache(cacheKey);
   if (cached) {
     return res.json({ ...cached, cached: true });
   }
 
-  // Parallel fetch from all platforms
   const startTime = Date.now();
-  const platformStatus = { amazon: 'ok', flipkart: 'ok' };
-
-  const [amazonResults, flipkartResults] = await Promise.allSettled([
-    scrapeAmazon(normalizedQuery),
-    scrapeFlipkart(normalizedQuery),
-  ]);
-
-  let amazonProducts = amazonResults.status === 'fulfilled' ? amazonResults.value : [];
-  let flipkartProducts = flipkartResults.status === 'fulfilled' ? flipkartResults.value : [];
-
-  if (amazonResults.status === 'rejected') {
-    platformStatus.amazon = 'error';
-    console.error('[SEARCH] Amazon failed:', amazonResults.reason?.message);
-  }
-  if (flipkartResults.status === 'rejected') {
-    platformStatus.flipkart = 'error';
-    console.error('[SEARCH] Flipkart failed:', flipkartResults.reason?.message);
-  }
-
-  let allProducts = [...amazonProducts, ...flipkartProducts];
+  let results = [];
+  let totalProducts = 0;
+  let platformStatus = { serpapi: 'ok' };
+  let platformCounts = {};
   let usedMock = false;
 
-  // Fallback to mock data if scraping returned nothing
-  if (allProducts.length === 0) {
-    console.log('[SEARCH] No live results — using mock data fallback');
-    allProducts = generateMockProducts(normalizedQuery);
-    usedMock = true;
-    platformStatus.amazon = 'mock';
-    platformStatus.flipkart = 'mock';
+  try {
+    const serpApiResponse = await searchWithSerpApi(normalizedQuery);
+    const relevantResults = serpApiResponse.results.filter((product) =>
+      isRelevantToQuery({ title: product.productName }, normalizedQuery)
+    );
 
-    // Split mock data by platform
-    amazonProducts = allProducts.filter(p => p.platform === 'Amazon');
-    flipkartProducts = allProducts.filter(p => p.platform === 'Flipkart');
+    if (relevantResults.length !== serpApiResponse.results.length) {
+      console.log(
+        `[SEARCH] Relevance filter kept ${relevantResults.length}/${serpApiResponse.results.length} product groups for "${normalizedQuery}"`
+      );
+    }
+
+    results = relevantResults;
+    totalProducts = serpApiResponse.totalProducts;
+    platformStatus = serpApiResponse.platformStatus;
+    platformCounts = serpApiResponse.platformCounts;
+  } catch (error) {
+    platformStatus.serpapi = 'error';
+    console.error('[SEARCH] SerpApi failed:', error.message);
   }
 
-  if (allProducts.length === 0) {
+  if (results.length === 0 && USE_MOCK_FALLBACK) {
+    console.log('[SEARCH] No live SerpApi results - using mock data fallback');
+    const mockProducts = filterProductsByQuery(generateMockProducts(normalizedQuery), normalizedQuery);
+    results = validateProductUrls(groupProducts(mockProducts));
+    totalProducts = mockProducts.length;
+    platformStatus.serpapi = 'mock';
+    platformCounts = results.reduce((acc, product) => {
+      product.platforms.forEach((platform) => {
+        const key = platform.name.toLowerCase();
+        acc[key] = (acc[key] || 0) + 1;
+      });
+      return acc;
+    }, {});
+    usedMock = true;
+  }
+
+  if (results.length === 0) {
     return res.json({
       query: normalizedQuery,
       results: [],
@@ -75,33 +81,24 @@ async function searchProducts(req, res) {
     });
   }
 
-  // Group products
-  console.log(`\n[SEARCH] Grouping ${allProducts.length} total products...`);
-  const grouped = groupProducts(allProducts);
-  const validated = validateProductUrls(grouped);
-
+  const validated = validateProductUrls(results);
   const fetchTime = Date.now() - startTime;
-  console.log(`[SEARCH] Done in ${fetchTime}ms — ${validated.length} groups\n`);
+  console.log(`[SEARCH] Done in ${fetchTime}ms - ${validated.length} groups\n`);
 
   const response = {
     query: normalizedQuery,
     results: validated,
-    totalProducts: allProducts.length,
+    totalProducts,
     totalGroups: validated.length,
-    crossPlatformGroups: validated.filter((g) => g.platformCount > 1).length,
+    crossPlatformGroups: validated.filter((group) => group.platformCount > 1).length,
     platformStatus,
-    platformCounts: {
-      amazon: amazonProducts.length,
-      flipkart: flipkartProducts.length,
-    },
+    platformCounts,
     fetchTime,
     cached: false,
     usedMock,
   };
 
-  // Cache the response
   setCache(cacheKey, response);
-
   return res.json(response);
 }
 
