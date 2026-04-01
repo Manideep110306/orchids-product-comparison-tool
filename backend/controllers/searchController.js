@@ -2,7 +2,7 @@ const { validateProductUrls } = require('../utils/urlValidator');
 const { getCache, setCache } = require('../cache/queryCache');
 const { generateMockProducts } = require('../utils/mockData');
 const { groupProducts } = require('../utils/productGrouper');
-const { filterProductsByQuery, isRelevantToQuery } = require('../utils/searchRelevance');
+const { filterProductsByQuery, isRelevantToQuery, scoreQueryMatch } = require('../utils/searchRelevance');
 const { searchWithSerpApi } = require('../providers/serpApiProvider');
 
 const USE_MOCK_FALLBACK = process.env.USE_MOCK === 'true' || false;
@@ -35,9 +35,16 @@ async function searchProducts(req, res) {
 
   try {
     const serpApiResponse = await searchWithSerpApi(normalizedQuery);
-    const relevantResults = serpApiResponse.results.filter((product) =>
-      isRelevantToQuery({ title: product.productName }, normalizedQuery)
-    );
+    const scoredResults = serpApiResponse.results
+      .map((product) => ({
+        product,
+        score: scoreQueryMatch({ title: product.productName }, normalizedQuery),
+      }))
+      .sort((a, b) => b.score - a.score);
+
+    const relevantResults = scoredResults
+      .filter(({ product }) => isRelevantToQuery({ title: product.productName }, normalizedQuery))
+      .map(({ product }) => product);
 
     if (relevantResults.length !== serpApiResponse.results.length) {
       console.log(
@@ -45,13 +52,40 @@ async function searchProducts(req, res) {
       );
     }
 
-    results = relevantResults;
+    if (relevantResults.length > 0) {
+      results = relevantResults;
+    } else {
+      const fallbackResults = scoredResults
+        .filter(({ score }) => score > 0)
+        .map(({ product }) => product);
+
+      if (fallbackResults.length > 0) {
+        console.log(
+          `[SEARCH] No strict matches for "${normalizedQuery}" - using ${fallbackResults.length} ranked fallback result(s)`
+        );
+        results = fallbackResults;
+      } else {
+        console.log(
+          `[SEARCH] No scored matches for "${normalizedQuery}" - returning raw provider results`
+        );
+        results = serpApiResponse.results;
+      }
+    }
+
     totalProducts = serpApiResponse.totalProducts;
     platformStatus = serpApiResponse.platformStatus;
     platformCounts = serpApiResponse.platformCounts;
   } catch (error) {
     platformStatus.serpapi = 'error';
     console.error('[SEARCH] SerpApi failed:', error.message);
+
+    return res.status(503).json({
+      error: error.message === 'SERPAPI_KEY is not configured.'
+        ? 'Search is not configured. Add backend/.env with a valid SERPAPI_KEY, or enable USE_MOCK=true for demo results.'
+        : 'Live product search is temporarily unavailable. Please try again later.',
+      platformStatus,
+      fetchTime: Date.now() - startTime,
+    });
   }
 
   if (results.length === 0 && USE_MOCK_FALLBACK) {

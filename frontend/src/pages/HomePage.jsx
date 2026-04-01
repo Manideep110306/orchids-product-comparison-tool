@@ -167,7 +167,7 @@ export default function HomePage() {
                   onFilteredResults={setFilteredResults}
                   meta={meta}
                 />
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                <div className="space-y-5">
                   {filteredResults.map((product, i) => (
                     <div
                       key={product.id}

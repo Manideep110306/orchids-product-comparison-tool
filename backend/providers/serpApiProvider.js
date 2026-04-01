@@ -4,7 +4,7 @@ const { extractSpecs, extractBrand, extractModelNumbers } = require('../utils/pr
 const SERPAPI_ENDPOINT = 'https://serpapi.com/search.json';
 const DEFAULT_MAX_PRODUCTS = parseInt(process.env.MAX_SERPAPI_PRODUCTS, 10) || 5;
 const DEFAULT_MAX_STORES = parseInt(process.env.MAX_SERPAPI_STORES_PER_PRODUCT, 10) || 6;
-const DEFAULT_ENRICHED_PRODUCTS = parseInt(process.env.MAX_SERPAPI_ENRICHED_PRODUCTS, 10) || 0;
+const DEFAULT_ENRICHED_PRODUCTS = parseInt(process.env.MAX_SERPAPI_ENRICHED_PRODUCTS, 10) || DEFAULT_MAX_PRODUCTS;
 const DEFAULT_OFFERS_TIMEOUT = parseInt(process.env.SERPAPI_OFFERS_TIMEOUT, 10) || 12000;
 const QUERY_ALIAS_PATTERNS = [
   { pattern: /\biphone\b/i, expand: (query) => `apple ${query}` },
@@ -87,6 +87,18 @@ function buildAggregates(platforms) {
 async function fetchJson(params, timeout) {
   const response = await axios.get(SERPAPI_ENDPOINT, { params, timeout });
   return response.data;
+}
+
+function pickProductUrl(product) {
+  const candidates = [
+    product.link,
+    product.product_link,
+    product.serpapi_link,
+    product.offer_link,
+    product.inline_shopping_results?.link,
+  ];
+
+  return candidates.find((value) => typeof value === 'string' && /^https?:\/\//i.test(value)) || null;
 }
 
 function buildQueryCandidates(query) {
@@ -184,12 +196,13 @@ async function searchWithSerpApi(query) {
 
     const title = product.title || 'Untitled product';
     const image = product.thumbnail || product.thumbnails?.[0] || null;
+    const productUrl = pickProductUrl(product);
     const normalizedPlatforms = platforms.length > 0 ? platforms : [{
       name: product.source || 'Google Shopping',
       price: product.extracted_price ?? null,
       rating: typeof product.rating === 'number' ? product.rating : null,
       reviews: typeof product.reviews === 'number' ? product.reviews : 0,
-      url: null,
+      url: productUrl,
       availability: 'Check site',
       delivery: 'Check site',
       image,
