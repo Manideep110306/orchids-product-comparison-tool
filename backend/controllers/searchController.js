@@ -79,13 +79,15 @@ async function searchProducts(req, res) {
     platformStatus.serpapi = 'error';
     console.error('[SEARCH] SerpApi failed:', error.message);
 
-    return res.status(503).json({
-      error: error.message === 'SERPAPI_KEY is not configured.'
-        ? 'Search is not configured. Add backend/.env with a valid SERPAPI_KEY, or enable USE_MOCK=true for demo results.'
-        : 'Live product search is temporarily unavailable. Please try again later.',
-      platformStatus,
-      fetchTime: Date.now() - startTime,
-    });
+    if (!USE_MOCK_FALLBACK) {
+      return res.status(503).json({
+        error: error.message === 'SERPAPI_KEY is not configured.'
+          ? 'Search is not configured. Add backend/.env with a valid SERPAPI_KEY, or enable USE_MOCK=true for demo results.'
+          : 'Live product search is temporarily unavailable. Please try again later.',
+        platformStatus,
+        fetchTime: Date.now() - startTime,
+      });
+    }
   }
 
   if (results.length === 0 && USE_MOCK_FALLBACK) {
