@@ -2,8 +2,8 @@ const axios = require('axios');
 const { extractSpecs, extractBrand, extractModelNumbers } = require('../utils/productGrouper');
 
 const SERPAPI_ENDPOINT = 'https://serpapi.com/search.json';
-const DEFAULT_MAX_PRODUCTS = parseInt(process.env.MAX_SERPAPI_PRODUCTS, 10) || 5;
-const DEFAULT_MAX_STORES = parseInt(process.env.MAX_SERPAPI_STORES_PER_PRODUCT, 10) || 6;
+const DEFAULT_MAX_PRODUCTS = parseInt(process.env.MAX_SERPAPI_PRODUCTS, 10) || 8;
+const DEFAULT_MAX_STORES = parseInt(process.env.MAX_SERPAPI_STORES_PER_PRODUCT, 10) || 10;
 const DEFAULT_ENRICHED_PRODUCTS = parseInt(process.env.MAX_SERPAPI_ENRICHED_PRODUCTS, 10) || DEFAULT_MAX_PRODUCTS;
 const DEFAULT_OFFERS_TIMEOUT = parseInt(process.env.SERPAPI_OFFERS_TIMEOUT, 10) || 12000;
 const QUERY_ALIAS_PATTERNS = [
@@ -84,6 +84,16 @@ function buildAggregates(platforms) {
   };
 }
 
+function pickBestImage(product, platforms = []) {
+  const candidates = [
+    product.thumbnail,
+    ...(Array.isArray(product.thumbnails) ? product.thumbnails : []),
+    ...platforms.map((platform) => platform.image),
+  ];
+
+  return candidates.find((value) => typeof value === 'string' && /^https?:\/\//i.test(value)) || null;
+}
+
 async function fetchJson(params, timeout) {
   const response = await axios.get(SERPAPI_ENDPOINT, { params, timeout });
   return response.data;
@@ -149,6 +159,30 @@ async function fetchStoresForProduct(product, config) {
   }
 }
 
+function mergePlatformEntries(primaryPlatforms, fallbackPlatform) {
+  const merged = [...primaryPlatforms];
+
+  if (!fallbackPlatform) {
+    return merged;
+  }
+
+  const hasFallbackStore = merged.some(
+    (platform) =>
+      platform.name.toLowerCase() === fallbackPlatform.name.toLowerCase() &&
+      platform.url === fallbackPlatform.url
+  );
+
+  if (!hasFallbackStore) {
+    merged.push(fallbackPlatform);
+  }
+
+  return merged.sort((a, b) => {
+    if (a.price === null) return 1;
+    if (b.price === null) return -1;
+    return a.price - b.price;
+  });
+}
+
 async function searchWithSerpApi(query) {
   const config = getSerpApiConfig();
   if (!config.apiKey) {
@@ -188,16 +222,9 @@ async function searchWithSerpApi(query) {
   );
 
   const results = shoppingResults.map((product, index) => {
-    const platforms = uniquePlatformsByName(storeResults[index]).sort((a, b) => {
-      if (a.price === null) return 1;
-      if (b.price === null) return -1;
-      return a.price - b.price;
-    });
-
     const title = product.title || 'Untitled product';
-    const image = product.thumbnail || product.thumbnails?.[0] || null;
     const productUrl = pickProductUrl(product);
-    const normalizedPlatforms = platforms.length > 0 ? platforms : [{
+    const fallbackPlatform = {
       name: product.source || 'Google Shopping',
       price: product.extracted_price ?? null,
       rating: typeof product.rating === 'number' ? product.rating : null,
@@ -205,8 +232,13 @@ async function searchWithSerpApi(query) {
       url: productUrl,
       availability: 'Check site',
       delivery: 'Check site',
-      image,
-    }];
+      image: product.thumbnail || product.thumbnails?.[0] || null,
+    };
+    const normalizedPlatforms = mergePlatformEntries(
+      uniquePlatformsByName(storeResults[index]),
+      fallbackPlatform
+    );
+    const image = pickBestImage(product, normalizedPlatforms);
 
     return {
       id: `serpapi_${product.product_id || index}_${Date.now()}`,

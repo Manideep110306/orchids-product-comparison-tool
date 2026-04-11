@@ -20,15 +20,16 @@ Open:
 
 ## Environment
 
-The compose file uses safe defaults so the stack can start without extra setup.
+Docker Compose reads backend runtime settings from `backend/.env`.
 
-- `USE_MOCK=true` by default for demo data
-- Set `SERPAPI_KEY` if you want real shopping results
+- Set `SERPAPI_KEY` in `backend/.env` for live shopping results
+- Keep `USE_MOCK=false` in `backend/.env` if you want real multi-platform results
+- Compose keeps fallback defaults only for non-sensitive limits and timeouts
 
 Example:
 
 ```bash
-SERPAPI_KEY=your_key_here docker compose up --build
+docker compose up --build
 ```
 
 ## Notes

@@ -115,6 +115,7 @@ export default function ProductCard({ product, onWishlistToggle, isWishlisted })
 
   const lowestPrice = product.minPrice;
   const visiblePlatforms = expanded ? product.platforms : product.platforms.slice(0, 3);
+  const displayImage = product.image || product.platforms.find((platform) => platform.image)?.image || null;
 
   const specs = product.specs || {};
   const specTags = Object.entries(specs)
@@ -139,9 +140,9 @@ export default function ProductCard({ product, onWishlistToggle, isWishlisted })
           </button>
 
           <div className="p-5 pt-16">
-            {!imgError && product.image ? (
+            {!imgError && displayImage ? (
               <img
-                src={product.image}
+                src={displayImage}
                 alt={product.productName}
                 loading="lazy"
                 onError={() => setImgError(true)}
