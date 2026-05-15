@@ -4,7 +4,7 @@ This project can run in Docker without changing the existing local development f
 
 ## Services
 
-- `frontend`: Builds the Vite app and serves it with Nginx on port `8080`
+- `frontend`: Builds the Vite app and serves it with Nginx on port `80`
 - `backend`: Runs the Express API on port `5000`
 
 ## Start
