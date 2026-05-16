@@ -15,8 +15,13 @@ docker compose up --build
 
 Open:
 
-- Frontend: `https://orchids-product-comparison-tool.onrender.com`
+- Frontend: `http://localhost:8080`
 - Backend health check: `http://localhost:5000/api/health`
+
+Render service URLs:
+
+- Frontend: `https://orchids-product-comparison-tool-1.onrender.com`
+- Backend: `https://orchids-product-comparison-tool.onrender.com`
 
 ## Environment
 

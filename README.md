@@ -117,6 +117,24 @@ Docker URLs:
 - Frontend: `http://localhost:8080`
 - Backend: `http://localhost:5000`
 
+## Render Deployment
+
+Render service URLs:
+
+- Frontend: `https://orchids-product-comparison-tool-1.onrender.com`
+- Backend: `https://orchids-product-comparison-tool.onrender.com`
+
+When deploying the frontend and backend as separate Render services, set this
+environment variable on the frontend service:
+
+```env
+VITE_API_BASE_URL=https://orchids-product-comparison-tool.onrender.com/api
+```
+
+Then redeploy the frontend so Vite includes that API URL in the built assets.
+The backend service also needs `SERPAPI_KEY` for live search, or `USE_MOCK=true`
+for demo search results.
+
 ## API Endpoints
 
 - `GET /api/health` - backend health check
